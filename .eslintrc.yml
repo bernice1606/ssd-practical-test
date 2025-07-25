@@ -1,0 +1,18 @@
+env:
+  browser: true
+  es2021: true
+  node: true
+
+extends:
+  - 'eslint:recommended'
+  - 'plugin:security/recommended'
+  - 'plugin:no-unsanitized/recommended'
+
+plugins:
+  - security
+  - no-unsanitized
+
+rules:
+  security/detect-object-injection: error
+  security/detect-non-literal-regexp: error
+  security/detect-unsafe-regex: error
