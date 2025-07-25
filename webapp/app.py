@@ -1,9 +1,10 @@
 from flask import Flask, request, render_template, redirect, url_for, flash
 import re
 import html
+import os
 
 app = Flask(__name__)
-app.secret_key = 'ssd_practical_test_2302032'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 def validate_input(user_input):
     """
@@ -63,16 +64,10 @@ def home():
         search_term = request.form.get('search_term', '').strip()
         
         # Validate input
-        is_valid, error_type = validate_input(search_term)
+        is_valid, _ = validate_input(search_term)
         
         if not is_valid:
-            if error_type == "xss":
-                flash("XSS attack detected. Input cleared for security.", "error")
-            elif error_type == "sql":
-                flash("SQL injection attempt detected. Input cleared for security.", "error")
-            else:
-                flash("Invalid input detected. Please use only alphanumeric characters, spaces, and basic punctuation.", "error")
-            
+            flash("Invalid input detected. Please use only alphanumeric characters, spaces, and basic punctuation.", "error")
             return render_template('home.html')
         
         # If input is valid, redirect to results page
@@ -85,7 +80,7 @@ def results():
     search_term = request.args.get('term', '')
     
     # Re-validate the term (defense in depth)
-    is_valid, error_type = validate_input(search_term)
+    is_valid, _ = validate_input(search_term)
     
     if not is_valid:
         flash("Invalid search term detected.", "error")
