@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSD Practical Test - Search</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Secure Search Application</h1>
+    <p>Student ID: 2302032</p>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div style="color: red; font-weight: bold; margin: 10px 0;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <form method="POST" action="/">
+        <label for="search_term">Enter search term:</label><br>
+        <input type="text" id="search_term" name="search_term" maxlength="100" required><br><br>
+        <input type="submit" value="Search">
+    </form>
+    
+    <p><small>Note: This application validates input to prevent XSS and SQL injection attacks as per OWASP C5.</small></p>
+</body>
+</html>

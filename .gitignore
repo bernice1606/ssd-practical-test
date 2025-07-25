@@ -1,0 +1,38 @@
+# Database files
+mysql_data/
+sonarqube_data/
+sonarqube_logs/
+sonarqube_extensions/
+
+# Git repositories
+repos/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache/
+
+# Node modules (for ESLint)
+node_modules/
+package-lock.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgresql_data/
+
+# Log files
+*.log
