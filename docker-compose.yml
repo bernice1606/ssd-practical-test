@@ -1,0 +1,51 @@
+services:
+  # Web server accessible at http://127.0.0.1/
+  nginxwebsvr:
+    image: nginx:alpine
+    container_name: nginxwebsvr
+    ports:
+      - "80:80"
+    volumes:
+      - ./web:/usr/share/nginx/html
+    restart: always
+
+  # Local Git server
+  git-server:
+    build:
+      dockerfile: gitserver.Dockerfile
+      context: .
+    container_name: git-server
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./repos:/var/www/git
+
+  # MySQL database
+  mysqldb:
+    image: mysql:8.0
+    container_name: mysqldb
+    restart: always
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 2302032@SIT.singaporetech.edu.sg
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: 2302032@SIT.singaporetech.edu.sg
+
+  # SonarQube accessible at http://127.0.0.1:9000/
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    restart: always
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_URL=jdbc:h2:mem:sonar
+      - SONAR_JDBC_USERNAME=admin
+      - SONAR_JDBC_PASSWORD=2302032@SIT.singaporetech.edu.sg
+    volumes:
+      - ./sonarqube_data:/opt/sonarqube/data
+      - ./sonarqube_logs:/opt/sonarqube/logs
+      - ./sonarqube_extensions:/opt/sonarqube/extensions
