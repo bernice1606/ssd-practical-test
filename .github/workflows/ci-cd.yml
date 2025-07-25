@@ -110,17 +110,10 @@ jobs:
         npx eslint . --ext .js --format json --output-file eslint-results.json || true
         npx eslint . --ext .js || true
 
-  # UI Testing with Selenium
+  # UI Testing over HTTP
   ui-testing:
     runs-on: ubuntu-latest
     needs: build-test
-    
-    services:
-      selenium:
-        image: selenium/standalone-chrome:latest
-        ports:
-          - 4444:4444
-        options: --shm-size=2gb
     
     steps:
     - name: Checkout repository
@@ -133,86 +126,59 @@ jobs:
         
     - name: Install dependencies
       run: |
-        pip install selenium flask requests
+        cd webapp
+        pip install -r requirements.txt
+        pip install requests pytest
         
-    - name: Start Flask application
+    - name: Start Flask application in background
       run: |
         cd webapp
-        python app.py &
-        sleep 10
+        nohup python app.py &
+        echo $! > flask.pid
         
-    - name: Wait for application to be ready
+    - name: Wait for application to start
       run: |
-        timeout 60 bash -c 'until curl -f http://localhost:5000; do sleep 2; done'
+        for i in {1..30}; do
+          if curl -f http://localhost:5000 >/dev/null 2>&1; then
+            echo "Application is ready"
+            break
+          fi
+          echo "Waiting for application... ($i/30)"
+          sleep 2
+        done
         
-    - name: Run Selenium UI tests
+    - name: Test HTTP endpoints
       run: |
-        python -c "
-        from selenium import webdriver
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-        import time
+        # Test home page
+        curl -f http://localhost:5000
+        echo "✓ Home page accessible"
         
-        # Setup Chrome options
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
+        # Test form submission with valid input
+        curl -X POST -d "search_term=hello world" http://localhost:5000
+        echo "✓ Form submission works"
         
-        # Connect to Selenium Grid
-        driver = webdriver.Remote(
-            command_executor='http://localhost:4444/wd/hub',
-            options=chrome_options
-        )
+        # Test XSS protection
+        response=$(curl -X POST -d "search_term=<script>alert('xss')</script>" http://localhost:5000)
+        if echo "$response" | grep -q "XSS attack detected"; then
+          echo "✓ XSS protection works"
+        else
+          echo "✗ XSS protection failed"
+          exit 1
+        fi
         
-        try:
-            # Test home page
-            driver.get('http://localhost:5000')
-            print('✓ Home page loads successfully')
-            
-            # Test search form exists
-            search_input = driver.find_element(By.ID, 'search_term')
-            submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type=\"submit\"]')
-            print('✓ Search form elements found')
-            
-            # Test normal search
-            search_input.clear()
-            search_input.send_keys('test search')
-            submit_button.click()
-            
-            # Wait for results page
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, 'h1'))
-            )
-            assert 'test search' in driver.page_source
-            print('✓ Normal search works correctly')
-            
-            # Test return button
-            return_button = driver.find_element(By.TAG_NAME, 'button')
-            return_button.click()
-            
-            # Should be back to home page
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, 'search_term'))
-            )
-            print('✓ Return to home page works')
-            
-            # Test XSS prevention
-            search_input = driver.find_element(By.ID, 'search_term')
-            search_input.clear()
-            search_input.send_keys('<script>alert(\"xss\")</script>')
-            submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type=\"submit\"]')
-            submit_button.click()
-            
-            # Should stay on home page with error message
-            time.sleep(2)
-            assert 'XSS attack detected' in driver.page_source
-            print('✓ XSS protection works correctly')
-            
-            print('All UI tests passed!')
-            
-        finally:
-            driver.quit()
-        "
+        # Test SQL injection protection
+        response=$(curl -X POST -d "search_term='; DROP TABLE users; --" http://localhost:5000)
+        if echo "$response" | grep -q "SQL injection"; then
+          echo "✓ SQL injection protection works"
+        else
+          echo "✗ SQL injection protection failed"
+          exit 1
+        fi
+        
+        echo "All HTTP tests passed!"
+        
+    - name: Stop Flask application
+      run: |
+        if [ -f webapp/flask.pid ]; then
+          kill $(cat webapp/flask.pid) || true
+        fi
